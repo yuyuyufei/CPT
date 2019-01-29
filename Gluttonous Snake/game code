@@ -1,0 +1,368 @@
+import random
+import pygame
+from pygame.locals import *
+import sys  # used to exit the window
+
+
+pygame.init()
+
+Speed = 5  # Snake speed
+Width = 780  # the width of the window
+Height = 630  # the height of teh window
+Cell_Size = 30  # width and height of each single grid
+CWidth = int(Width / Cell_Size)  # the number of grids when counting from width
+CHeight = int(Height / Cell_Size)  # the number of grids when counting from height
+
+# Defining colours that will be used in different places in the program.
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+Msg = (41, 36, 33)  # the colour of the message shown in the start and over page.
+Msg2 = (250, 240, 230)  # the colour of the message shown in the intro page.
+OVER = (255, 69, 0)  # the colour that used to draw "game over" in game over page.
+GridColour = (34, 139, 34)  # Grid's colour
+SnakeColour = (63, 20, 183)  # the snake's colour
+SnakeLine = (45, 18, 122)  # the color of the lines which draw the body of snake.
+TitleCover = (124, 252, 0)  # the background colour of the title "SNAKE!"
+F1 = (255, 97, 0)
+F2 = (237, 145, 33)
+F3 = (210, 105, 30)  # colours that used as the food.
+F4 = (138, 43, 226)
+F5 = (135, 38, 87)
+Food = F1, F2, F3, F4, F5
+AnswerColour = (255, 215, 0)  # the colour that will be used to draw the results of users, includes level and score.
+
+# Load and store Background pics that used as cover, intro and game screen.
+BgCover = pygame.image.load(r"C:\Users\lenovo\Pictures\Cover.jpg")
+BgIntro = pygame.image.load(r"C:\Users\lenovo\Pictures\BgIntro11_.jpg")
+BgGame = pygame.image.load(r"C:\Users\lenovo\Pictures\BGGG.jpg")
+
+# Defining keyboard keys.
+UP = 'up'
+DOWN = 'down'
+LEFT = 'left'
+RIGHT = 'right'
+
+HEAD = 0  # index of the snake's head
+
+
+def main():
+   global SpeedClock, DisplaySurf, CommonFont  # define global variable
+
+   SpeedClock = pygame.time.Clock()  # control the speed of the game
+   DisplaySurf = pygame.display.set_mode((Width, Height))  # set the size of the window
+   DisplaySurf.blit(BgCover, (0, 0))  # set the background pic of start game.
+   CommonFont = pygame.font.Font(None, 30)  # Font that will be used in the following
+   pygame.display.set_caption("Test Your Ability")  # set the name of the window
+
+# running order and game loop
+   showStartScreen()
+   while True:
+       RunGame()
+       ShowGameOverScreen()
+
+
+def RunGame():
+   global newHead
+   # Set a random start point.
+   FirstX = random.randint(5, CWidth - 10)
+   FirstY = random.randint(5, CHeight - 10)
+   direction = RIGHT  # default start direction.
+   SnakeCoords = [{'x': FirstX, 'y': FirstY},      # Snake is 3 units long at the beginning.
+                  {'x': FirstX - 1, 'y': FirstY},
+                  {'x': FirstX - 2, 'y': FirstY}]
+   apple = {"x": FirstX + 6, "y": FirstY}  # the coordinates of the first apple.  6 units righter than the snake
+
+   # main game loop
+   while True:
+       for event in pygame.event.get():  # monitor users' reaction
+           if event.type == QUIT:
+               sys.exit()
+           elif event.type == KEYDOWN:
+               if event.key == K_LEFT and direction != RIGHT:
+                   direction = LEFT
+               elif event.key == K_RIGHT and direction != LEFT:
+                   direction = RIGHT
+               elif event.key == K_UP and direction != DOWN:
+                   direction = UP
+               elif event.key == K_DOWN and direction != UP: # avoid system thinks the snake hits itself.(the 2nd one)
+                   direction = DOWN
+
+       # check if the Snake has hit the edge
+       if SnakeCoords[HEAD]['x'] == -1 \
+       or SnakeCoords[HEAD]['x'] == CWidth \
+       or SnakeCoords[HEAD]['y'] == -1 or \
+       SnakeCoords[HEAD]['y'] == CHeight:
+           return  # game over
+       # check if the Snake has hit itself
+       for SnakeBody in SnakeCoords[1:]:
+           if SnakeBody['x'] == SnakeCoords[HEAD]['x'] and SnakeBody['y'] == SnakeCoords[HEAD]['y']:
+               return  # game over
+
+       # check if Snake has eaten an apply
+       if SnakeCoords[HEAD]['x'] == apple['x'] and SnakeCoords[HEAD]['y'] == apple['y']:
+           # without removing snake's tail segment
+           apple = GetRandomLocation()  # set a new apple somewhere
+       else:
+           del SnakeCoords[-1]  # remove worm's tail segment
+
+       # to make snake move
+       if direction == UP:
+           newHead = {'x': SnakeCoords[HEAD]['x'],
+                      'y': SnakeCoords[HEAD]['y'] - 1}
+       elif direction == DOWN:
+           newHead = {'x': SnakeCoords[HEAD]['x'],
+                      'y': SnakeCoords[HEAD]['y'] + 1}
+       elif direction == LEFT:
+           newHead = {'x': SnakeCoords[HEAD]['x'] - 1,
+                      'y': SnakeCoords[HEAD]['y']}
+       elif direction == RIGHT:
+           newHead = {'x': SnakeCoords[HEAD]['x'] + 1,
+                      'y': SnakeCoords[HEAD]['y']}
+
+       SnakeCoords.insert(0, newHead)
+       DisplaySurf.blit(BgGame, [0, 0])  # change the background
+       DrawGrid()  # call function which draw grid
+       DrawSnake(SnakeCoords)  # call definition which draw the snake, use SnakeCoords above
+       DrawFood(apple)  # call definition which draw the snake.
+       # the length of SnakeCoords is 3 more than the score. Call function which draw score.
+       DrawScore(len(SnakeCoords) - 3)
+       # draw level of the user, as the user gets 15 score, user goes to the next level.
+       DrawLevel((len(SnakeCoords) - 3) // 15 + 1)
+       pygame.display.update()
+       # when the score is a multiple of 15, the snake speeds up.
+       SpeedClock.tick((len(SnakeCoords) - 3) // 15 * 2 + 5)
+
+
+def DrawPressKeyMsg():  # set the message on the start and over page for users to press key.
+   PressKeySurf = CommonFont.render("Press 'y' to enter the intro page", True, Msg)
+   PressKeySurf2 = CommonFont.render("Press 'q' if you want to quit the game", True, Msg)
+   PressKeyRect = PressKeySurf.get_rect()
+   PressKeyRect2 = PressKeySurf2.get_rect()
+   PressKeyRect.topleft = (Width - 380, Height - 50)  # the direction of its topleft point
+   PressKeyRect2.topleft = (Width - 380, Height - 30)  # the direction of its topleft point
+   DisplaySurf.blit(PressKeySurf, PressKeyRect)  # blit
+   DisplaySurf.blit(PressKeySurf2, PressKeyRect2)  # blit
+
+
+def DrawPressKeyMsg2():  # set the message on the intro page for users to press key.
+   PressKeySurf3 = CommonFont.render("Press 'p' to start the game", True, Msg2)
+   PressKeySurf4 = CommonFont.render("Press 'q' to quit the game", True, Msg2)
+   PressKeyRect3 = PressKeySurf3.get_rect()
+   PressKeyRect4 = PressKeySurf4.get_rect()
+   PressKeyRect3.topleft = (Width - 275, Height - 50)  # the direction of its topleft point
+   PressKeyRect4.topleft = (Width - 275, Height - 30)  # the direction of its topleft point
+   DisplaySurf.blit(PressKeySurf3, PressKeyRect3)  # blit
+   DisplaySurf.blit(PressKeySurf4, PressKeyRect4)  # blit
+
+
+# Check if user press relative keys to have different functions. Check the key press on DrawPressKeyMsg()
+def CheckForKeyPress():
+   for event in pygame.event.get():
+       if event.type == KEYUP:  # user doesn't press anything on the keyboard
+           return None  # nothing happens
+       elif event.type == KEYDOWN:  # user press keys on the keyboard
+           if event.key == K_y:  # user presses "y" on the keyboard
+               IntroPage()  # goes into intro page
+           elif event.key == K_q:  # user presses "q" on the keyboard
+               sys.exit()  # game quit
+           else:
+               return None
+       elif event.type == pygame.QUIT:
+           sys.exit()
+
+
+# Check if user press relative keys to have different functions. Check the key press on DrawPressKeyMsg2()
+# Same logic as the previous definition.
+def CheckForKeyPress2():
+   for event in pygame.event.get():
+       if event.type == KEYUP:
+           return None
+       elif event.type == KEYDOWN:
+           if event.key == K_p:
+               RunGame()
+               ShowGameOverScreen()
+           elif event.key == K_q:
+               sys.exit()
+           else:
+               return None
+       elif event.type == pygame.QUIT:
+           sys.exit()
+
+
+def showStartScreen():
+   TitleFont = pygame.font.Font("freesansbold.ttf", 105)
+   TitleSurf = TitleFont.render('Snake!', True, WHITE, TitleCover)
+
+   while True:
+       TitleRect = TitleSurf.get_rect()
+       TitleRect.center = (Width / 2, Height / 2 - 25)  # to make sure that the title is at the center of the screen
+       DisplaySurf.blit(TitleSurf, TitleRect)
+
+       DrawPressKeyMsg()  # call definition
+
+       if CheckForKeyPress():
+           pygame.event.get()  # clear event queue
+           return
+
+       pygame.display.update()
+       SpeedClock.tick(Speed)
+
+
+# logic is the same as the previous definition.
+def IntroPage():
+   while True:
+
+       DisplaySurf.blit(BgIntro, [0, 0])  # change the background
+
+       DrawPressKeyMsg2()
+
+       if CheckForKeyPress2():
+           pygame.event.get()
+           return
+
+       pygame.display.update()
+       SpeedClock.tick(Speed)
+
+
+def ShowGameOverScreen():
+   GameOverFont = pygame.font.Font('freesansbold.ttf', 90)  # set font
+   AnswerFont = pygame.font.Font("freesansbold.ttf", 25)   # set font
+   GameSurf = GameOverFont.render('Game', True, OVER)
+   OverSurf = GameOverFont.render('Over', True, OVER)
+   AnswerSurf = AnswerFont.render('Your score is %s' % Score + ' !', True, AnswerColour)  # show user's score
+   LevelSurf = AnswerFont.render('And you are on level %s' % Level + ' !', True, AnswerColour)  # show user's level
+   GameRect = GameSurf.get_rect()
+   OverRect = OverSurf.get_rect()
+   AnswerRect = AnswerSurf.get_rect()
+   LevelRect = LevelSurf.get_rect()
+   GameRect.midtop = (Width / 2, 45)  # the direction of "Game"'s middle top.
+   OverRect.midtop = (Width / 2, GameRect.height + 55)  # the direction of "Over"'s middle top.
+   AnswerRect.midtop = (Width / 2, GameRect.height + 160)  # the direction of the score feedback's  middle top.
+   LevelRect.midtop = (Width / 2, GameRect.height + 200)  # the direction of the level feedback's  middle top.
+
+   DisplaySurf.fill(BLACK)  # fill the background with black
+   DisplaySurf.blit(GameSurf, GameRect)
+   DisplaySurf.blit(OverSurf, OverRect)
+   DisplaySurf.blit(AnswerSurf, AnswerRect)
+   DisplaySurf.blit(LevelSurf, LevelRect)
+
+   TheHighestScore(Score, GainHighestScore())
+   DrawPressKeyMsg()
+   pygame.display.update()
+   pygame.time.wait(500)
+   CheckForKeyPress()  # clear out any key presses in the event queue
+
+   while True:
+       if CheckForKeyPress():
+           pygame.event.get()  # clear event queue
+           return
+
+
+def GetRandomLocation():  # get random location on the screen, it's used to get new apple's location.
+   return {'x': random.randint(0, CWidth - 1), 'y': random.randint(0, CHeight - 1)}
+
+
+def TheHighestScore(score, HighestScore):  # set the highest point record.
+   ScoreFont = pygame.font.Font("freesansbold.ttf", 28)  # set font
+   Scorefile = open('scorefile', 'r+')
+
+   # if conditional to make sure the relationship between user score and the highest record.
+   if score > int(HighestScore):
+       HighscoreSurf = ScoreFont.render('Congratulations! you have got the highest score !', True, AnswerColour)
+       HighscoreRect = HighscoreSurf.get_rect()
+       HighscoreRect.midtop = (Width / 2, 325)
+       DisplaySurf.blit(HighscoreSurf, HighscoreRect)
+       Scorefile.writelines(str(score))
+       Scorefile.close()
+   elif score == int(HighestScore):
+       HighscoreSurf1 = ScoreFont.render('WOW! You have got the same score as the highest one !', True, AnswerColour)
+       HighscoreRect1 = HighscoreSurf1.get_rect()
+       HighscoreRect1.midtop = (Width / 2, 325)
+       DisplaySurf.blit(HighscoreSurf1, HighscoreRect1)
+       Scorefile.close()
+
+   elif score < int(HighestScore):
+       Scorefile.close()
+       HighscoreSurf3 = ScoreFont.render("The highest score is %s" % HighestScore + ' .', True, AnswerColour)
+       HighscoreSurf4 = ScoreFont.render("Don't give up, you can do better next time !", True, AnswerColour)
+       HighscoreRect3 = HighscoreSurf3.get_rect()
+       HighscoreRect4 = HighscoreSurf3.get_rect()
+       HighscoreRect3.midtop = (Width / 2, 345)
+       HighscoreRect4.midtop = (Width / 2 - 120, 385)
+       DisplaySurf.blit(HighscoreSurf3, HighscoreRect3)
+       DisplaySurf.blit(HighscoreSurf4, HighscoreRect4)
+
+   pygame.display.update()
+   SpeedClock.tick(Speed)
+
+
+def GainHighestScore():  # read first line of file, that ir the highest record and return it.  Programmer can feel free to set one
+   Scorefile = open('scorefile', 'r')
+   HighestScore = Scorefile.readline()  # Read first line
+   Scorefile.close()  # close the file
+   return HighestScore
+
+
+
+# draw snake
+def DrawSnake(Snakecoords):
+   for coord in Snakecoords:
+       x = coord['x'] * Cell_Size
+       y = coord['y'] * Cell_Size
+# draw the outer darker line of the snake.
+       SnakeSegmentRect = pygame.Rect(x, y, Cell_Size, Cell_Size)
+       pygame.draw.rect(DisplaySurf, SnakeLine, SnakeSegmentRect)
+# draw the inner segment.
+       SnakeInnerSegmentRect = pygame.Rect(x + 4, y + 4, Cell_Size - 8, Cell_Size - 8)
+       pygame.draw.rect(DisplaySurf, SnakeColour, SnakeInnerSegmentRect)
+
+
+# draw food
+def DrawFood(coord):
+   x = coord['x'] * Cell_Size
+   y = coord['y'] * Cell_Size
+   FoodRect = pygame.Rect(x, y, Cell_Size, Cell_Size)
+   pygame.draw.rect(DisplaySurf, random.choice(Food), FoodRect)
+
+
+# draw score
+def DrawScore(score):
+   global Score # it's used in ShowGameOverScreen()
+   ScoreFont = pygame.font.Font(None, 35)
+   ScoreSurf = ScoreFont.render('Score: %s' % score, True, WHITE)
+   ScoreRect = ScoreSurf.get_rect()
+   ScoreRect.topleft = (Width - 120, 10)
+   Score = score
+   DisplaySurf.blit(ScoreSurf, ScoreRect)
+
+
+# draw level
+# the logic is the same as the previous definiton.
+def DrawLevel(level):
+   global Level
+   LevelFont = pygame.font.Font(None, 35)
+   LevelSurf = LevelFont.render('Level: %s' % level, True, WHITE)
+   LevelRect = LevelSurf.get_rect()
+   LevelRect.topleft = (Width - 120, 39)
+   Level = level
+   DisplaySurf.blit(LevelSurf, LevelRect)
+
+
+# draw grids on the screen when the screen is on game-running page.
+def DrawGrid():
+   for y in range(0, Height, Cell_Size):  # draw horizontal lines
+       pygame.draw.line(DisplaySurf, GridColour, (0, y), (Width, y))
+   for x in range(0, Width, Cell_Size):  # draw vertical lines
+       pygame.draw.line(DisplaySurf, GridColour, (x, 0), (x, Height))
+
+
+def Run():
+   if __name__ == '__main__':
+       try:
+           main()
+       except SystemExit:
+           pass
+
+
+Run()  # call def.
+
